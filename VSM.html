@@ -1,0 +1,564 @@
+
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Stack Machine v0.5.1</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .stack-item {
+            transition: all 0.2s ease;
+            animation: slideIn 0.2s ease-out;
+        }
+        @keyframes slideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .active-instruction {
+            background-color: #fef3c7;
+            border-left: 4px solid #f59e0b;
+        }
+        #codeEditor::-webkit-scrollbar, .custom-scroll::-webkit-scrollbar {
+            width: 8px;
+        }
+        #codeEditor::-webkit-scrollbar-track, .custom-scroll::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        #codeEditor::-webkit-scrollbar-thumb, .custom-scroll::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        .modal-overlay {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(4px);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen font-sans text-slate-900">
+
+    <div class="max-w-[1600px] mx-auto p-4 md:p-6">
+        <header class="mb-6 flex justify-between items-center">
+            <div class="flex-1">
+                <p class="text-[10px] text-slate-400 font-mono">(c)2026 ir. Marc Dendooven</p>
+            </div>
+            <div class="text-center flex-1">
+                <h1 class="text-3xl font-bold text-slate-800">Virtual Stack Machine</h1>
+                <p class="text-slate-600">v0.5.1</p>
+            </div>
+            <div class="flex-1 text-right">
+                <button id="btnHelp" class="bg-slate-800 hover:bg-slate-700 text-white p-2 px-4 rounded-lg font-bold transition flex items-center ml-auto shadow-md">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Help & Info
+                </button>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-160px)]">
+            
+            <!-- Editor Sectie -->
+            <div class="lg:col-span-6 flex flex-col space-y-4 h-full">
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col flex-1">
+                    <div class="flex justify-between items-center mb-3 shrink-0">
+                        <h2 class="text-lg font-semibold flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                            Programma Editor
+                        </h2>
+                        
+                        <div class="flex items-center space-x-3">
+                            <div class="flex items-center space-x-1 border-r pr-3 border-slate-200">
+                                <button id="btnSave" class="p-2 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition" title="Opslaan als .vsm">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                                </button>
+                                <label for="fileInput" class="p-2 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition cursor-pointer" title="Laden van .vsm">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M16 8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                                </label>
+                                <input type="file" id="fileInput" class="hidden" accept=".vsm,.txt">
+                            </div>
+
+                            <div class="flex items-center space-x-2 bg-slate-100 p-1 rounded-lg border border-slate-200">
+                                <span class="text-xs font-bold text-slate-500 px-2">Snelheid:</span>
+                                <button id="speedNormal" class="speed-btn px-3 py-1 text-xs font-bold rounded bg-blue-600 text-white shadow-sm transition">Normaal</button>
+                                <button id="speedTurbo" class="speed-btn px-3 py-1 text-xs font-bold rounded text-slate-600 hover:bg-slate-200 transition">Turbo</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <textarea id="codeEditor" class="w-full flex-1 p-4 font-mono text-base bg-slate-900 text-green-400 rounded-lg border-none focus:ring-2 focus:ring-blue-500 mb-4 resize-none" spellcheck="false">
+; Verbeterde Recursieve Faculteit (n!)
+PUSH 5          ; Bereken 5!
+CALL FACT       ; Start de recursie
+PRINT           ; Toon resultaat (120)
+HALT
+
+FACT:
+  DUP           ; Kopieer n voor check
+  JIF NEXT      ; Als n > 0, ga naar NEXT
+  DROP          ; n is 0, verwijder n
+  PUSH 1        ; Resultaat van 0! is 1
+  RET           ; Keer terug
+
+NEXT:
+  DUP           ; Bewaar n voor de latere vermenigvuldiging
+  PUSH 1
+  SUB           ; n - 1
+  CALL FACT     ; Bereken (n-1)!
+  MUL           ; n * resultaat_van_call
+  RET</textarea>
+                    
+                    <div class="grid grid-cols-3 gap-3 shrink-0">
+                        <button id="btnRun" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition shadow-md">
+                            Start Programma
+                        </button>
+                        <button id="btnStep" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-lg transition shadow-md">
+                            Volgende Stap
+                        </button>
+                        <button id="btnReset" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 px-4 rounded-lg transition border border-slate-300">
+                            Reset Machine
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stack Sectie -->
+            <div class="lg:col-span-3 flex flex-col space-y-4 h-full">
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex-1 flex flex-col">
+                    <h2 class="text-lg font-semibold mb-3 flex items-center shrink-0">
+                        <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                        Data Stack
+                    </h2>
+                    <div id="stackContainer" class="flex-1 flex flex-col-reverse justify-start gap-2 border-2 border-dashed border-slate-100 p-4 rounded-lg overflow-y-auto bg-slate-50/50 custom-scroll">
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 h-1/3 flex flex-col">
+                    <h2 class="text-lg font-semibold mb-3 flex items-center shrink-0">
+                        <svg class="w-5 h-5 mr-2 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg>
+                        Return Stack
+                    </h2>
+                    <div id="returnStackContainer" class="flex-1 flex flex-col gap-1 border-2 border-dashed border-slate-100 p-3 rounded-lg overflow-y-auto bg-slate-50/50 custom-scroll font-mono text-xs text-amber-900">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Log Sectie -->
+            <div class="lg:col-span-3 flex flex-col space-y-4 h-full">
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col h-1/2">
+                    <h2 class="text-lg font-semibold mb-3 shrink-0">Output Log</h2>
+                    <div id="outputConsole" class="flex-1 bg-slate-100 p-3 rounded-lg font-mono text-sm overflow-y-auto text-slate-800 border border-slate-200 custom-scroll">
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col h-1/2 overflow-hidden">
+                    <h2 class="text-lg font-semibold mb-2 shrink-0">Gedecodeerd</h2>
+                    <div id="programList" class="flex-1 text-xs font-mono space-y-1 overflow-y-auto border border-slate-50 p-2 rounded bg-slate-50 custom-scroll">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="helpModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 modal-overlay">
+        <div class="bg-white w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center shrink-0">
+                <h2 class="text-2xl font-bold text-slate-800">VSM Handleiding</h2>
+                <button id="btnCloseHelp" class="text-slate-400 hover:text-slate-600 transition">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l18 18"></path></svg>
+                </button>
+            </div>
+            <div class="p-8 overflow-y-auto custom-scroll space-y-8">
+                <section>
+                    <h3 class="text-xl font-semibold text-blue-600 mb-3 uppercase tracking-wide">Over de VSM</h3>
+                    <p class="text-slate-600 leading-relaxed">
+                        De Virtual Stack Machine (VSM) is een gesimuleerde computerarchitectuur die werkt op basis van een <strong>Stack</strong> (stapel). In plaats van registers te gebruiken voor berekeningen, worden waarden bovenop de stack geplaatst en verwerkt.
+                    </p>
+                </section>
+
+                <section>
+                    <h3 class="text-xl font-semibold text-blue-600 mb-4 uppercase tracking-wide">Basis Instructies</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                            <code class="font-bold text-blue-700">PUSH [getal]</code>
+                            <p class="text-xs text-slate-500 mt-1">Zet een getal bovenop de data stack.</p>
+                        </div>
+                        <div class="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                            <code class="font-bold text-blue-700">POP / DROP</code>
+                            <p class="text-xs text-slate-500 mt-1">Verwijder het bovenste element van de stack.</p>
+                        </div>
+                        <div class="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                            <code class="font-bold text-blue-700">ADD / SUB / MUL</code>
+                            <p class="text-xs text-slate-500 mt-1">Wiskunde op de bovenste twee getallen.</p>
+                        </div>
+                        <div class="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                            <code class="font-bold text-blue-700">DUP / SWAP / OVER</code>
+                            <p class="text-xs text-slate-500 mt-1">Manipuleer de volgorde van de stack.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section>
+                    <h3 class="text-xl font-semibold text-amber-600 mb-4 uppercase tracking-wide">Subroutines & Control Flow</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="p-4 bg-amber-50 rounded-lg border border-amber-200">
+                            <code class="font-bold text-amber-700">CALL [label]</code>
+                            <p class="text-xs text-slate-600 mt-1">Spring naar een label en onthoud de huidige positie op de <strong>Return Stack</strong>.</p>
+                        </div>
+                        <div class="p-4 bg-amber-50 rounded-lg border border-amber-200">
+                            <code class="font-bold text-amber-700">RET</code>
+                            <p class="text-xs text-slate-600 mt-1">Keer terug naar het adres dat bovenaan de Return Stack staat.</p>
+                        </div>
+                        <div class="p-4 bg-amber-50 rounded-lg border border-amber-200">
+                            <code class="font-bold text-amber-700">JMP [label]</code>
+                            <p class="text-xs text-slate-600 mt-1">Directe sprong naar een label (zonder terugkeer).</p>
+                        </div>
+                        <div class="p-4 bg-amber-50 rounded-lg border border-amber-200">
+                            <code class="font-bold text-amber-700">JIF [label]</code>
+                            <p class="text-xs text-slate-600 mt-1">Pop de stack; spring alleen als de waarde <strong>niet</strong> nul is.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section>
+                    <h3 class="text-xl font-semibold text-slate-800 mb-3 uppercase tracking-wide">Tips</h3>
+                    <ul class="list-disc list-inside text-slate-600 space-y-2">
+                        <li>Gebruik de <strong>Turbo</strong> modus voor zware berekeningen zoals faculteiten.</li>
+                        <li>De <strong>Return Stack</strong> toont je de geschiedenis van actieve functie-aanroepen.</li>
+                        <li>Tekst na een puntkomma (<code>;</code>) wordt gezien als commentaar.</li>
+                    </ul>
+                </section>
+            </div>
+            <div class="p-6 bg-slate-50 border-t border-slate-100 text-center shrink-0">
+                <button id="btnUnderstand" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-8 rounded-full shadow-lg transition">Begrepen!</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl transition-opacity opacity-0 pointer-events-none z-50">
+        Bestand geladen!
+    </div>
+
+    <script>
+        class VirtualStackMachine {
+            constructor() {
+                this.stack = [];
+                this.returnStack = [];
+                this.program = [];
+                this.labels = {};
+                this.ip = 0;
+                this.isHalted = false;
+                this.outputCallback = null;
+            }
+
+            loadProgram(codeStr) {
+                this.reset();
+                const lines = codeStr.split('\n');
+                let processedProgram = [];
+                
+                lines.forEach(line => {
+                    let cleanLine = line.split(';')[0].trim();
+                    if (!cleanLine) return;
+
+                    if (cleanLine.endsWith(':')) {
+                        const labelName = cleanLine.slice(0, -1).toUpperCase();
+                        processedProgram.push({ op: 'LABEL', arg: labelName, originalLine: line });
+                        return;
+                    }
+
+                    const parts = cleanLine.toUpperCase().split(/\s+/);
+                    processedProgram.push({
+                        op: parts[0],
+                        arg: parts.length > 1 ? parts[1] : null,
+                        originalLine: line
+                    });
+                });
+
+                processedProgram.forEach((instr, idx) => {
+                    if (instr.op === 'LABEL') {
+                        this.labels[instr.arg] = idx;
+                    }
+                });
+
+                this.program = processedProgram;
+            }
+
+            reset() {
+                this.stack = [];
+                this.returnStack = [];
+                this.labels = {};
+                this.ip = 0;
+                this.isHalted = false;
+            }
+
+            step() {
+                if (this.isHalted || this.ip >= this.program.length) {
+                    this.isHalted = true;
+                    return false;
+                }
+
+                const instr = this.program[this.ip];
+                let jumpPerformed = false;
+                
+                switch(instr.op) {
+                    case 'PUSH':
+                        this.stack.push(parseInt(instr.arg) || 0);
+                        break;
+                    case 'DUP':
+                        if (this.stack.length >= 1) {
+                            this.stack.push(this.stack[this.stack.length - 1]);
+                        }
+                        break;
+                    case 'DROP':
+                    case 'POP':
+                        if (this.stack.length >= 1) this.stack.pop();
+                        break;
+                    case 'OVER':
+                        if (this.stack.length >= 2) {
+                            this.stack.push(this.stack[this.stack.length - 2]);
+                        }
+                        break;
+                    case 'SWAP':
+                        if (this.stack.length >= 2) {
+                            const a = this.stack.pop();
+                            const b = this.stack.pop();
+                            this.stack.push(a);
+                            this.stack.push(b);
+                        }
+                        break;
+                    case 'ADD':
+                        if (this.stack.length >= 2) {
+                            const b = this.stack.pop();
+                            const a = this.stack.pop();
+                            this.stack.push(a + b);
+                        }
+                        break;
+                    case 'SUB':
+                        if (this.stack.length >= 2) {
+                            const b = this.stack.pop();
+                            const a = this.stack.pop();
+                            this.stack.push(a - b);
+                        }
+                        break;
+                    case 'MUL':
+                        if (this.stack.length >= 2) {
+                            const b = this.stack.pop();
+                            const a = this.stack.pop();
+                            this.stack.push(a * b);
+                        }
+                        break;
+                    case 'PRINT':
+                        if (this.stack.length >= 1) {
+                            const val = this.stack.pop();
+                            if (this.outputCallback) this.outputCallback(val);
+                        }
+                        break;
+                    case 'JMP':
+                        if (this.labels[instr.arg] !== undefined) {
+                            this.ip = this.labels[instr.arg];
+                            jumpPerformed = true;
+                        }
+                        break;
+                    case 'JIF':
+                        if (this.stack.length >= 1) {
+                            const condition = this.stack.pop();
+                            if (condition !== 0 && this.labels[instr.arg] !== undefined) {
+                                this.ip = this.labels[instr.arg];
+                                jumpPerformed = true;
+                            }
+                        }
+                        break;
+                    case 'CALL':
+                        if (this.labels[instr.arg] !== undefined) {
+                            this.returnStack.push(this.ip + 1);
+                            this.ip = this.labels[instr.arg];
+                            jumpPerformed = true;
+                        }
+                        break;
+                    case 'RET':
+                        if (this.returnStack.length > 0) {
+                            this.ip = this.returnStack.pop();
+                            jumpPerformed = true;
+                        } else {
+                            this.isHalted = true;
+                        }
+                        break;
+                    case 'HALT':
+                        this.isHalted = true;
+                        break;
+                }
+
+                if (!jumpPerformed) this.ip++;
+                if (this.ip >= this.program.length) this.isHalted = true;
+                
+                return true; 
+            }
+        }
+
+        const vsm = new VirtualStackMachine();
+        const stackContainer = document.getElementById('stackContainer');
+        const returnStackContainer = document.getElementById('returnStackContainer');
+        const outputConsole = document.getElementById('outputConsole');
+        const programList = document.getElementById('programList');
+        const codeEditor = document.getElementById('codeEditor');
+        const toast = document.getElementById('toast');
+        const helpModal = document.getElementById('helpModal');
+        
+        let timer = null;
+        let speedMode = 'normal';
+
+        vsm.outputCallback = (val) => {
+            const div = document.createElement('div');
+            div.textContent = `[UITVOER]: ${val}`;
+            div.className = "text-emerald-700 font-mono py-1 border-b border-slate-200 last:border-0";
+            outputConsole.appendChild(div);
+            outputConsole.scrollTop = outputConsole.scrollHeight;
+        };
+
+        function showToast(msg) {
+            toast.textContent = msg;
+            toast.style.opacity = '1';
+            setTimeout(() => { toast.style.opacity = '0'; }, 2000);
+        }
+
+        function updateUI() {
+            if (vsm.stack.length === 0) {
+                stackContainer.innerHTML = '<div class="text-center text-slate-300 italic text-sm py-4 uppercase tracking-wider">Stack is leeg</div>';
+            } else {
+                stackContainer.innerHTML = '';
+                vsm.stack.forEach((val, idx) => {
+                    const el = document.createElement('div');
+                    el.className = 'stack-item bg-white border-2 border-blue-500 text-blue-600 rounded-lg p-3 text-center font-bold shadow-sm';
+                    el.innerHTML = `<span class="text-[9px] text-slate-400 block uppercase">Positie ${idx}</span>${val}`;
+                    stackContainer.prepend(el);
+                });
+            }
+
+            if (vsm.returnStack.length === 0) {
+                returnStackContainer.innerHTML = '<div class="text-slate-300 text-[10px] italic">Geen actieve calls</div>';
+            } else {
+                returnStackContainer.innerHTML = '';
+                vsm.returnStack.forEach((addr, idx) => {
+                    const el = document.createElement('div');
+                    el.className = 'bg-amber-100/50 border border-amber-200 text-amber-900 p-1.5 rounded mb-1 font-mono text-[10px] flex justify-between';
+                    el.innerHTML = `<span>[${idx}] ADDR:</span> <span class="font-bold">${addr.toString().padStart(2, '0')}</span>`;
+                    returnStackContainer.prepend(el);
+                });
+            }
+
+            const items = programList.children;
+            for(let i=0; i<items.length; i++) {
+                if(i === vsm.ip) {
+                    items[i].classList.add('active-instruction', 'font-bold');
+                    items[i].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                } else {
+                    items[i].classList.remove('active-instruction', 'font-bold');
+                }
+            }
+        }
+
+        function buildProgramUI() {
+            programList.innerHTML = '';
+            vsm.program.forEach((instr, idx) => {
+                const el = document.createElement('div');
+                const isLabel = instr.op === 'LABEL';
+                el.className = `p-1 px-3 rounded text-[10px] leading-tight transition-all ${isLabel ? 'text-blue-500 italic mt-2' : 'text-slate-400'}`;
+                el.textContent = `${idx.toString().padStart(2, '0')}: ${isLabel ? instr.arg + ':' : instr.op + ' ' + (instr.arg || '')}`;
+                programList.appendChild(el);
+            });
+        }
+
+        function runCycle() {
+            if (vsm.isHalted) {
+                clearInterval(timer);
+                return;
+            }
+            if (speedMode === 'normal') {
+                vsm.step();
+                updateUI();
+                if (vsm.isHalted) clearInterval(timer);
+            } else {
+                for(let i=0; i<200; i++) {
+                    if (!vsm.step() || vsm.isHalted) {
+                        clearInterval(timer);
+                        break;
+                    }
+                }
+                updateUI();
+            }
+        }
+
+        document.getElementById('btnRun').onclick = () => {
+            clearInterval(timer);
+            vsm.loadProgram(codeEditor.value);
+            buildProgramUI();
+            updateUI();
+            const interval = speedMode === 'normal' ? 250 : 20;
+            timer = setInterval(runCycle, interval);
+        };
+
+        document.getElementById('btnStep').onclick = () => {
+            clearInterval(timer);
+            if (vsm.program.length === 0 || vsm.isHalted) {
+                vsm.loadProgram(codeEditor.value);
+                buildProgramUI();
+                updateUI();
+            } else {
+                vsm.step();
+                updateUI();
+            }
+        };
+
+        document.getElementById('btnReset').onclick = () => {
+            clearInterval(timer);
+            vsm.reset();
+            outputConsole.innerHTML = '';
+            vsm.loadProgram(codeEditor.value);
+            buildProgramUI();
+            updateUI();
+        };
+
+        document.getElementById('btnSave').onclick = () => {
+            const blob = new Blob([codeEditor.value], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'vsm_program.vsm';
+            a.click();
+        };
+
+        document.getElementById('fileInput').onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                codeEditor.value = event.target.result;
+                vsm.loadProgram(codeEditor.value);
+                buildProgramUI();
+                updateUI();
+                showToast('Bestand geladen!');
+            };
+            reader.readAsText(file);
+        };
+
+        document.getElementById('btnHelp').onclick = () => helpModal.classList.remove('hidden');
+        document.getElementById('btnCloseHelp').onclick = () => helpModal.classList.add('hidden');
+        document.getElementById('btnUnderstand').onclick = () => helpModal.classList.add('hidden');
+
+        const btnNormal = document.getElementById('speedNormal');
+        const btnTurbo = document.getElementById('speedTurbo');
+
+        btnNormal.onclick = () => {
+            speedMode = 'normal';
+            btnNormal.className = "px-3 py-1 text-xs font-bold rounded bg-blue-600 text-white shadow-sm transition";
+            btnTurbo.className = "px-3 py-1 text-xs font-bold rounded text-slate-600 hover:bg-slate-200 transition";
+        };
+
+        btnTurbo.onclick = () => {
+            speedMode = 'turbo';
+            btnTurbo.className = "px-3 py-1 text-xs font-bold rounded bg-blue-600 text-white shadow-sm transition";
+            btnNormal.className = "px-3 py-1 text-xs font-bold rounded text-slate-600 hover:bg-slate-200 transition";
+        };
+
+        vsm.loadProgram(codeEditor.value);
+        buildProgramUI();
+        updateUI();
+    </script>
+</body>
+</html>
